@@ -1,28 +1,36 @@
-from src.database.connection import get_supabase_client
+import logging
+import sys
+from src.generators.content import generate_chapter_content
 
-def initialize_book(title, notes):
-    supabase = get_supabase_client()
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+def run_full_generation(book_id: str):
+    """
+    Orchestrates the sequential generation of all chapters for a given book.
+    """
+    logger.info(f"Starting full content generation for Book ID: {book_id}")
     
-    # Define the data to insert
-    book_data = {
-        "title": title,
-        "pre_outline_notes": notes,
-        "status": "drafting_outline"
-    }
+    chapters_completed = 0
     
-    # Insert and get the returned ID
-    response = supabase.table("books").insert(book_data).execute()
-    
-    if response.data:
-        print(f"Success! Book Created with ID: {response.data[0]['id']}")
-        return response.data[0]['id']
-    else:
-        print("Error creating book.")
-        return None
+    while True:
+        
+        success = generate_chapter_content(book_id)
+        
+        if not success:
+            break
+            
+        chapters_completed += 1
+        logger.info(f"Progress update: {chapters_completed} chapters processed so far.")
+
+    logger.info("Generation loop finished. Check your database for final content.")
 
 if __name__ == "__main__":
-    # Example Trigger
-    my_book_id = initialize_book(
-        title="The Future of MLOps", 
-        notes="A guide on containerizing production AI models."
-    )
+    if len(sys.argv) > 1:
+        target_book_id = sys.argv[1]
+        run_full_generation(target_book_id)
+    else:
+        logger.error("Usage: python main.py <book_id>")
